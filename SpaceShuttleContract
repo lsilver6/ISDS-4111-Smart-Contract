@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0 <0.9.0;
+
+contract SpaceShuttleRental {
+    address payable public owner;
+    bool public available;
+    uint public ratePerDay;
+    address public currentRenter;
+    uint public rentalEndTime;
+
+    event Log(address indexed sender, string message);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor() {
+        owner = payable(msg.sender);
+        available = true;
+        ratePerDay = 2 ether; // Example base rate for space shuttle rental
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Must be the owner to use this function.");
+        _;
+    }
+
+    modifier onlyWhenAvailable() {
+        require(available, "Space shuttle currently not available.");
+        _;
+    }
+
+    function bookShuttle(uint numDays) public payable onlyWhenAvailable {
+        uint totalCost = ratePerDay * numDays;
+        require(msg.value >= totalCost, "Insufficient Ether for booking.");
+
+        (bool sent, ) = owner.call{value: msg.value}("");
+        require(sent, "Failed to send Ether to owner.");
+
+        available = false;
+        currentRenter = msg.sender;
+        rentalEndTime = block.timestamp + (numDays * 1 days);
+
+        emit Log(msg.sender, "Space shuttle successfully booked!");
+    }
+
+    function makeShuttleAvailable() public onlyOwner {
+        available = true;
+        currentRenter = address(0);
+        rentalEndTime = 0;
+        emit Log(msg.sender, "Space shuttle is now available for rent.");
+    }
+
+    function updateRate(uint newRate) public onlyOwner {
+        ratePerDay = newRate;
+        emit Log(msg.sender, "Owner updated space shuttle rental rate.");
+    }
+
+    function transferOwnership(address payable newOwner) public onlyOwner {
+        require(newOwner != address(0), "New owner cannot be zero address.");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    function checkAvailability() public view returns (bool) {
+        return available;
+    }
+}
